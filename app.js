@@ -4,6 +4,7 @@ const streetsEle = document.querySelector(".streets");
 const titleBar = document.querySelector("main").firstElementChild;
 let streetObject;
 let stopArray ;
+const tbody = document.querySelector('tbody');
 
 function searchBus(query) {
   fetch(
@@ -34,8 +35,16 @@ streetsEle.onclick = (event) => {
     )
       .then((resp) => resp.json())
       .then((data) => {
-        for(const key in data.stops) {
-          console.log(data.stops[key]);
+        let stopsObject = data.stops;
+        for(const key in stopsObject) {
+          tbody.innerHTML = "";
+          tbody.insertAdjacentHTML('afterbegin', `
+          <td>${stopsObject[key].street.name}</td>
+            <td>${stopsObject[key]["cross-street"].name}</td>
+            <td>${stopsObject[key].direction}</td>
+            <td>74</td>
+            <td>02:25 PM</td>`)
+          console.log(stopsObject[key])
         }
       });
   }
