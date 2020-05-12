@@ -34,6 +34,38 @@ function insertIntoStreetList(data) {
   });
 }
 
+function fetchAndDisplay() {
+  fetch(`https://api.winnipegtransit.com/v3/stops.json?street=${streetKey}&usuage=long&api-key=${apiKey}`)
+    .then((resp) => resp.json())
+    .then((data) => {
+      stopsObject = data.stops;
+      return fetch(`https://api.winnipegtransit.com/v3/stops/${stopsObject[0].key}/schedule.json?max-results-per-route=1&api-key=${apiKey}`)
+        .then((resp) => resp.json())
+        .then((data) => {
+          stopScheduleObject = data;
+          let stopScheduleArray = stopScheduleObject["stop-schedule"]["route-schedules"];
+
+          stopsObject.forEach((stops) => {
+            stopScheduleArray.forEach((scheduledStop) => {  
+              let time = scheduledStop["scheduled-stops"][0].times["departure"].estimated;            
+              tbody.insertAdjacentHTML("afterbegin", `
+                <td>${stops.street.name}</td>
+                <td>${stops["cross-street"].name}</td>
+                <td>${stops.direction}</td>
+                <td>${scheduledStop.route.number}</td>
+                <td>${new Date(time).toLocaleTimeString("en-US", timeFormat)}</td>`)  
+            }) 
+          })
+          titleBar.insertAdjacentHTML(
+            "afterbegin", `
+              <div id="street-name" class="titlebar">
+            Displaying results for ${stopsObject[0].street.name}
+          </div>
+          `);
+        });
+    });
+}
+
 //Event Listeners for click and submit
 form.onsubmit = (event) => {
   const input = event.target.querySelector("input");
@@ -44,34 +76,6 @@ form.onsubmit = (event) => {
 streetsEle.onclick = (event) => {
   if (event.target.nodeName === "A") {
     streetKey = event.target.dataset.streetKey;
-    fetch(`https://api.winnipegtransit.com/v3/stops.json?street=${streetKey}&api-key=${apiKey}`)
-      .then((resp) => resp.json())
-      .then((data) => {
-        stopsObject = data.stops;
-        return fetch(`https://api.winnipegtransit.com/v3/stops/${stopsObject[0].key}/schedule.json?max-results-per-route=1&api-key=${apiKey}`)
-          .then((resp) => resp.json())
-          .then((data) => {
-            stopScheduleObject = data;
-            console.log(stopScheduleObject); //stop schedule
-            stopsObject.forEach((stops) => {
-              console.log(stops);
-              let time = stopScheduleObject["stop-schedule"]["route-schedules"][0]["scheduled-stops"][0].times["departure"].estimated;
-              tbody.insertAdjacentHTML("afterbegin",`
-              <td>${stopsObject[0].street.name}</td>
-              <td>${stopsObject[0]["cross-street"].name}</td>
-              <td>${stopsObject[0].direction}</td>
-              <td>${stopScheduleObject["stop-schedule"]["route-schedules"][0].route.number}</td>
-              <td>${new Date(time).toLocaleTimeString("en-US", timeFormat)}</td>`);
-            });
-
-            titleBar.innerHTML = "";
-            titleBar.insertAdjacentHTML(
-              "afterbegin", `
-          <div id="street-name" class="titlebar">
-          Displaying results for ${stopsObject[0].street.name}
-          </div>
-          `);
-        });
-      });
+    fetchAndDisplay();  
   }
 };
