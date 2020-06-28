@@ -1,81 +1,83 @@
 const apiKey = `zqAH1xZnEZviNZHUaz6`;
-const form = document.querySelector("form");
-const streetsEle = document.querySelector(".streets");
-const titleBar = document.querySelector("main").firstElementChild;
-const tbody = document.querySelector("tbody");
-let streetObject;
-let streetKey;
-let stopsObject;
-let stopScheduleObject;
-const timeFormat = {
-  timeZone: "Canada/Central",
-  hour12: true,
-  hour: "numeric",
-  minute: "numeric",
-  seconds: "numeric",
-};
+const formEle = document.querySelector('form');
+const streetsEle = document.querySelector('.streets');
 
-function searchBus(query) {
+const tbody = document.querySelector('tbody');
+
+formEle.onsubmit = e => {
+  const input = e.target.querySelector('input');
+  getStreets(input.value);
+  input.value = "";
+  e.preventDefault();
+}
+
+streetsEle.onclick = e => {
+  if (e.target.nodeName === "A") {
+    getStops(e.target.dataset.streetKey);
+  }
+}
+
+function getStreets(query) {
   fetch(`https://api.winnipegtransit.com/v3/streets.json?api-key=${apiKey}&name=${query}`)
-    .then((resp) => resp.json())
-    .then((json) => {
-      streetObject = json.streets;
-      insertIntoStreetList(streetObject);
+    .then(resp => resp.json())
+    .then(data => {
+      insertStreets(data.streets);
     });
 }
 
-function insertIntoStreetList(data) {
-  streetsEle.innerHTML = "";
-  data.forEach(function (streetData) {
-    streetsEle.insertAdjacentHTML(
-      "afterbegin",
-      `<a href="#" data-street-key=${streetData.key}>${streetData.name}</a> `
-    );
+function insertStreets(streets) {
+  let streetsHTML = "";
+
+  if (streets.length !== 0) {
+    streets.forEach(street => {
+      streetsHTML += `<a href="#" data-street-key="${street.key}">${street.name}</a>`;
+    });
+  } else {
+    streetsHTML = `<div class="no-results">No results found</div>`;
+  }
+
+  streetsEle.innerHTML = streetsHTML;
+}
+
+function getStops(streetKey) {
+  fetch(`https://api.winnipegtransit.com/v3/stops.json?api-key=${apiKey}&street=${streetKey}`)
+    .then(resp => resp.json())
+    .then(data => {
+      getSchedules(data.stops);
+    });
+}
+
+function getSchedules(stops) {
+  const stopSchedules = [];
+  stops.forEach(stop => {
+    stopSchedules.push(fetch(`https://api.winnipegtransit.com/v3/stops/${stop.key}/schedule.json?api-key=${apiKey}&max-results-per-route=1&usage=long`)
+      .then(resp => resp.json())
+      .then(data => {
+        return data['stop-schedule'];
+      }));
+  })
+
+  Promise.all(stopSchedules).then(stopSchedules => {
+    tbody.textContent = "";
+    stopSchedules.forEach(stopSchedule => {
+      insertSchedules(stopSchedule);
+    });
   });
 }
 
-function fetchAndDisplay() {
-  fetch(`https://api.winnipegtransit.com/v3/stops.json?street=${streetKey}&usuage=long&api-key=${apiKey}`)
-    .then((resp) => resp.json())
-    .then((data) => {
-      stopsObject = data.stops;
-      return fetch(`https://api.winnipegtransit.com/v3/stops/${stopsObject[0].key}/schedule.json?max-results-per-route=1&api-key=${apiKey}`)
-        .then((resp) => resp.json())
-        .then((data) => {
-          stopScheduleObject = data;
-          let stopScheduleArray = stopScheduleObject["stop-schedule"]["route-schedules"];
-
-          stopsObject.forEach((stops) => {
-            stopScheduleArray.forEach((scheduledStop) => {  
-              let time = scheduledStop["scheduled-stops"][0].times["departure"].estimated;            
-              tbody.insertAdjacentHTML("afterbegin", `
-                <td>${stops.street.name}</td>
-                <td>${stops["cross-street"].name}</td>
-                <td>${stops.direction}</td>
-                <td>${scheduledStop.route.number}</td>
-                <td>${new Date(time).toLocaleTimeString("en-US", timeFormat)}</td>`)  
-            }) 
-          })
-          titleBar.insertAdjacentHTML(
-            "afterbegin", `
-              <div id="street-name" class="titlebar">
-            Displaying results for ${stopsObject[0].street.name}
-          </div>
-          `);
-        });
-    });
-}
-
-//Event Listeners for click and submit
-form.onsubmit = (event) => {
-  const input = event.target.querySelector("input");
-  searchBus(input.value);
-  event.preventDefault();
-};
-
-streetsEle.onclick = (event) => {
-  if (event.target.nodeName === "A") {
-    streetKey = event.target.dataset.streetKey;
-    fetchAndDisplay();  
+function insertSchedules(stopSchedules) {
+  stopSchedules['route-schedules'].forEach(route => {
+    const departureTime = new Date(route['scheduled-stops'][0].times.departure.estimated);
+    console.log(stopSchedules)
+    tbody.insertAdjacentHTML('afterbegin', `
+      <tr>
+        <td>${stopSchedules.stop.street.name}</td>
+        <td>${stopSchedules.stop['cross-street'].name}</td>
+        <td>${stopSchedules.stop.direction}</td>
+        <td>${route.route.number}</td>
+        <td>${departureTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
+      </tr>
+    `)}
+    )
   }
-};
+  
