@@ -1,5 +1,5 @@
 # mittNextBus
-working with winnipeg transit API to get next bus route for users
+App works with winnipeg transit API to get next bus route for users
 
 ## How to use
 clone this repository with git clone
